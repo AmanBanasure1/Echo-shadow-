@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>⏳ Time Echo - Turn-Based Puzzle Game</title>
+<meta name="description" content="Time Echo: एक मजेदार टर्न-बेस्ड पज़ल गेम जिसमें आपका अपना घोस्ट आपकी मदद करता है। प्लेट दबाओ, दरवाजे खोलो और खतरों से बचो!">
+<meta property="og:title" content="⏳ Time Echo - Puzzle Game">
+<meta property="og:description" content="अपने ही घोस्ट के साथ मिलकर पहेली सुलझाएं! क्या आप सारे 7 लेवल पार कर सकते हैं?">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0e1220">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏳</text></svg>">
+<style>
+:root{--bg:#eef1fb;--fg:#141a33;--panel:#dfe4f6;--mut:#56608a;--acc:#e0a800;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1220;--fg:#e8ecff;--panel:#1a2038;--mut:#8a93b8;--acc:#ffd24a}}
+:root[data-theme="dark"]{--bg:#0e1220;--fg:#e8ecff;--panel:#1a2038;--mut:#8a93b8;--acc:#ffd24a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;align-items:center;padding:10px;touch-action:manipulation;user-select:none}
+h1{font-size:20px;margin:4px 0}
+#hud{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;font-size:13px;margin-bottom:6px}
+#hud span{background:var(--panel);padding:4px 10px;border-radius:99px}
+#hud button{font-size:14px;padding:3px 10px;border-radius:99px;background:var(--panel)}
+#wrap{position:relative;border-radius:12px;overflow:hidden;background:#121830;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+canvas{display:block}
+#wrap.shake{animation:sh .35s}
+@keyframes sh{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#msg{min-height:42px;max-width:560px;text-align:center;font-size:14px;margin:8px 0;color:var(--mut)}
+#ui{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}
+#pad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:6px}
+button{font:inherit;border:0;border-radius:12px;background:var(--panel);color:var(--fg);font-size:22px;cursor:pointer;transition:transform .08s}
+button:active{transform:scale(.94)}
+#side{display:flex;flex-direction:column;gap:8px}
+#side button{font-size:15px;padding:10px 16px;min-width:160px}
+#echo{background:#1fb5c9;color:#032;font-weight:600}
+#ov{position:absolute;inset:0;background:rgba(8,10,25,.88);color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:16px}
+#ov button{background:var(--acc);color:#222;font-size:17px;font-weight:600;padding:12px 22px}
+#pg{position:fixed;inset:0;z-index:50;background:rgba(8,10,25,.94);display:none;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));color:#e8ecff}
+#pgc{width:100%;max-width:560px;max-height:100%;overflow:auto;background:#1a2038;border-radius:16px;padding:18px}
+#pgc h2{margin:0 0 8px;font-size:22px}#pgc h3{font-size:15px;margin:14px 0 4px;color:#ffd24a}
+#pgc p,#pgc li{font-size:14px;line-height:1.5;color:#cfd6f5}#pgc ul{padding-left:18px;margin:4px 0}
+.mb{display:block;width:100%;text-align:left;padding:12px 16px;margin:8px 0;font-size:17px;background:#2a3360;color:#fff}
+.mb small{display:block;font-size:12px;opacity:.75;font-weight:400;margin-top:2px}.mb.pri{background:#ffd24a;color:#222;font-weight:600}
+.el{display:flex;gap:12px;align-items:flex-start;margin:8px 0}.ic{font-size:28px;min-width:40px;text-align:center}
+.lk{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}.lk button{font-size:13px;padding:6px 10px;background:none;color:#8fa0ff;text-decoration:underline}
+</style>
+</head>
+<body>
+<h1>⏳ Time Echo</h1>
+<div id="hud">
+  <span id="hl"></span>
+  <span id="ht"></span>
+  <span id="he"></span>
+  <button id="snd" title="Sound On/Off">🔊</button>
+</div>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+  <div id="ov">
+    <div id="ot" style="font-size:20px"></div>
+    <button id="ob">Aage</button>
+  </div>
+</div>
+<div id="msg"></div>
+<div id="ui">
+  <div id="pad">
+    <span></span><button data-d="U" aria-label="Up">▲</button><span></span>
+    <button data-d="L" aria-label="Left">◀</button><button data-d="W" aria-label="Wait">⏸</button><button data-d="R" aria-label="Right">▶</button>
+    <span></span><button data-d="D" aria-label="Down">▼</button><span></span>
+  </div>
+  <div id="side">
+    <button id="echo">👻 ECHO banao (E)</button>
+    <button id="retry">↺ Round retry (R)</button>
+    <button id="reset">⟲ Level reset (X)</button>
+    <button id="help">❓ Is level ki madad</button>
+    <button id="menu">☰ Menu</button>
+  </div>
+</div>
+
+<script>
+const MAXT=40;
+document.body.insertAdjacentHTML("beforeend",'<div id="pg"><div id="pgc"><h2 id="pgt"></h2><div id="pgx"></div><div id="pgf"></div></div></div>');
+let started=false,muted=false,actx=null,dieTimer=null;
+
+function sfx(type){
+  if(muted)return;
+  try{
+    if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended")actx.resume();
+    const osc=actx.createOscillator(),gain=actx.createGain();
+    osc.connect(gain);gain.connect(actx.destination);
+    const now=actx.currentTime;
+    if(type==="step"){
+      osc.frequency.setValueAtTime(240,now);
+      gain.gain.setValueAtTime(0.04,now);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+0.04);
+      osc.start(now);osc.stop(now+0.04);
+    }else if(type==="echo"){
+      osc.type="sine";
+      osc.frequency.setValueAtTime(320,now);
+      osc.frequency.exponentialRampToValueAtTime(640,now+0.16);
+      gain.gain.setValueAtTime(0.1,now);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+0.16);
+      osc.start(now);osc.stop(now+0.16);
+    }else if(type==="die"){
+      osc.type="sawtooth";
+      osc.frequency.setValueAtTime(160,now);
+      osc.frequency.linearRampToValueAtTime(55,now+0.25);
+      gain.gain.setValueAtTime(0.12,now);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+0.25);
+      osc.start(now);osc.stop(now+0.25);
+      if(navigator.vibrate)navigator.vibrate(120);
+    }else if(type==="win"){
+      osc.type="triangle";
+      osc.frequency.setValueAtTime(440,now);
+      osc.frequency.setValueAtTime(587.33,now+0.09);
+      osc.frequency.setValueAtTime(880,now+0.18);
+      gain.gain.setValueAtTime(0.12,now);
+      gain.gain.exponentialRampToValueAtTime(0.001,now+0.32);
+      osc.start(now);osc.stop(now+0.32);
+    }
+  }catch(e){}
+}
+
+const EL={
+me:["🟡","Tum (peela gola)","Arrow buttons se ek baar mein ek step chalte ho. Tum ek step chalte ho to poori duniya (ghost, sentinel, kaante) bhi ek step chalti hai."],
+exit:["🏁","Nikaas (hara jhanda)","Yahan pahunchte hi level paar. Ye tumhara goal hai."],
+plate:["🟠","Plate (gola)","Tum ya tumhara ghost iske upar khada ho to usi rang ka darwaza khulta hai. Hatte hi darwaza wapas band."],
+door:["🚪","Darwaza","Band hai to aar-paar nahi ja sakte. Plate dabi ho tabhi khulta hai."],
+wait:["⏸","Wait (ruko)","Ek step ruko. Kaante aur Sentinel ki timing ke liye kaam aata hai."],
+echo:["👻","Echo / Ghost","ECHO dabao to is round ke saare moves save ho jate hain. Agle round mein ghost (cyan gola) wahi moves dohrata hai aur aakhir mein wahin khada rehta hai, plate dabaye hue."],
+spike:["🔺","Kaante (Spikes)","Har step par on/off hote hain. Lal = abhi khatarnak. Orange = agle step par on honge. Dhusar = surakshit. Active kaante par khade ho gaye to haar."],
+sentinel:["🔴","Sentinel (lal pahredar)","Dotted raste par aage-peeche gashti karta hai. Usse takraye to haar. Ghost bhi takraye to destroy ho jata hai."],
+two:["🟠🟣","Alag rang, alag plate","Sunehri plate A darwaza kholta hai, baingani plate B wala. Do plate ek saath dabane hon to do echo chahiye."],
+crush:["⚠️","Darwaza kuchalta hai","Agar plate wala hat gaya aur tum darwaze ke andar the, to darwaza band hote hi tum kuchal jaoge. Ghost ko plate par khada rehne do."]};
+const el=k=>'<div class="el"><div class="ic">'+EL[k][0]+'</div><div><b>'+EL[k][1]+'</b><p style="margin:2px 0">'+EL[k][2]+'</p></div></div>';
+
+const PAGES={
+privacy:["🔒 Privacy Policy",'<p>Last updated: 29 October 2026</p><h3>Hum kya collect karte hain</h3><p>Time Echo koi account ya login nahi maangta. Hum tumhara naam, email, phone ya location collect nahi karte.</p><h3>Local storage</h3><p>Game sirf tumhara current level aur sound preference tumhare apne browser ke local storage mein rakhta hai, taki Resume kaam kare. Ye data tumhare device par rehta hai, kisi server par nahi bheja jata. Browser data clear karne par ye mit jayega.</p><h3>Third party</h3><p>Page host karne wali service apne standard technical logs rakh sakti hai. Agar future mein ads ya analytics jode gaye to ye policy update hogi.</p><h3>Bachche</h3><p>Game sabhi umar ke liye hai aur hum jaankar kisi ka personal data collect nahi karte.</p>'],
+terms:["📜 Terms and Conditions",'<p>Last updated: 29 October 2026</p><h3>1. Upyog</h3><p>Time Echo free hai aur sirf personal manoranjan ke liye hai. Game khelkar tum in terms se sehmat ho.</p><h3>2. Ownership</h3><p>Game ka design, code aur content creator (Aman Dhanraj Banasure) ka hai. Bina ijazat copy, bechna ya apne naam se publish karna mana hai.</p><h3>3. Disclaimer</h3><p>Game jaisa hai waisa (as is) diya gaya hai. Progress browser data clear hone par mit sakti hai.</p><h3>4. Updates</h3><p>Levels, features aur ye terms kabhi bhi badle ja sakte hain.</p>'],
+about:["ℹ️ About",'<p><b>Time Echo</b> ek turn-based puzzle game hai jisme tumhara hi ghost (past self) tumhari madad karta hai.</p><p>Version 1.1 — 7 Brain-Teasing Levels.</p><p>Created & Developed by: <b>Aman Dhanraj Banasure</b>. Khelne ke liye shukriya! 💛</p>'],
+contact:["✉️ Contact and Feedback",'<p>Koi bug mile, naye level ka idea ho ya feedback dena ho, to zaroor sampark karein.</p><p>Developer: <b>Aman Dhanraj Banasure</b></p>']};
+
+const $pg=()=>document.getElementById("pg");
+function modal(title,html,btns,foot){document.getElementById("pgt").textContent=title;document.getElementById("pgx").innerHTML=html;const f=document.getElementById("pgf");f.innerHTML="";btns.forEach(b=>{const x=document.createElement("button");x.className="mb"+(b[2]?" pri":"");x.innerHTML=b[0];x.onclick=b[1];f.appendChild(x)});if(foot)f.insertAdjacentHTML("beforeend",foot);$pg().style.display="flex";document.getElementById("pgc").scrollTop=0}
+function closeM(){$pg().style.display="none"}
+function hasSave(){try{return localStorage.getItem("te_lv")!==null}catch(e){return false}}
+function savedLv(){try{return Math.min(LV.length-1,+localStorage.getItem("te_lv")||0)}catch(e){return 0}}
+function pageOpen(k){modal(PAGES[k][0],PAGES[k][1],[["← Wapas",menu,1]])}
+
+function menu(){
+ const sv=started||hasSave(),b=[];
+ b.push([sv?'⏯ Resume<small>Level '+((started?li:savedLv())+1)+' - wahin se jahan chhoda tha</small>':'▶ Play<small>Level 1 se khel shuru karo</small>',()=>{if(started)closeM();else{started=true;closeM();load(savedLv(),sv)}},1]);
+ b.push(['🆕 New Game<small>Purani progress hata kar Level 1 se naya khel</small>',()=>{try{localStorage.removeItem("te_lv")}catch(e){}started=true;closeM();load(0)}]);
+ b.push(['❓ How to Play<small>Game, buttons aur icons samjho</small>',()=>how()]);
+ const lk=['privacy|Privacy Policy','terms|Terms','about|About','contact|Contact'].map(s=>{const p=s.split("|");return '<button onclick="pageOpen(\''+p[0]+'\')">'+p[1]+'</button>'}).join("");
+ modal("⏳ Time Echo",'<p>Apne hi ghost ke saath milke puzzle suljhao. Plate dabao, darwaze kholo, khatron se bacho.</p>',b,'<div class="lk">'+lk+'</div>');
+}
+
+function how(){modal("❓ How to Play",
+'<h3>Goal</h3><p>Peele gole (tum) ko hare jhande tak pahunchana hai.</p><h3>Khel ka tarika</h3><ul><li>Ek move = ek step. Tum chalo to ghost aur sentinel bhi ek step chalte hain.</li><li>Darwaza plate dabne par khulta hai, par tum akele plate par aur darwaze par ek saath nahi ho sakte.</li><li>Isliye pehle round mein plate tak jao aur ECHO dabao. Agle round mein ghost wahi karega aur plate dabaye rakhega, tum nikal jaoge.</li></ul>'+
+'<h3>Buttons kya karte hain</h3><ul><li><b>▲ ◀ ▼ ▶</b>: ek step chalo (keyboard: arrows ya WASD).</li><li><b>⏸ Wait</b>: ek step ruko (Space).</li><li><b>👻 ECHO banao</b>: is round ke moves save karke ghost banata hai, aur tumhe shuru par wapas bhejta hai (E).</li><li><b>↺ Round retry</b>: sirf is round ko shuru se kholta hai, bane hue echo bache rehte hain (R).</li><li><b>⟲ Level reset</b>: saare echo hata kar level shuru se (X).</li><li><b>❓ Is level ki madad</b>: is level ke naye elements dobara dikhata hai.</li><li><b>☰ Menu</b>: Resume, New Game aur ye guide kholta hai.</li></ul>'+
+'<h3>Icons</h3>'+Object.keys(EL).map(el).join(""),[["← Wapas",menu,1]])}
+
+function intro(){const d=LV[li];modal("Level "+(li+1)+": "+d.n,'<p>'+d.hint+'</p>'+(d.nw.length?'<h3>Is level ke khas elements</h3>'+d.nw.map(el).join(""):''),[["🎮 Samajh gaya, shuru karo",closeM,1]])}
+
+const DIRS={U:[0,-1],D:[0,1],L:[-1,0],R:[1,0],W:[0,0]};
+const LV=[
+{n:"Pehla Echo",nw:["me","exit","plate","door","wait","echo"],limit:1,hint:"Plate (golden circle) tak 2 step jao, phir ECHO dabao. Tumhara ghost plate dabake rahega, tab tum darwaze se nikal jao.",
+ map:["#########","#S.a#...#","#...A.E.#","#...#...#","#########"],en:[]},
+{n:"Kaante ka raasta",nw:["spike"],limit:1,hint:"Kaante (spikes) har step par badalte hain. Orange = agle step par active. Wait (⏸ / Space) se sahi time ka intezaar karo.",
+ map:["###########","#S.a#######","#...A.v.^E#","#...#######","###########"],en:[]},
+{n:"Do Echo, ek Sentinel",nw:["sentinel","two","crush"],limit:2,hint:"Plate A aur plate B dono dabane padenge, aur beech mein lal Sentinel gashti kar raha hai. Do echo banao, teesri baar tum nikalo.",
+ map:["#############","#S.a#.....###","#...A.....BE#","#...#....b###","#############"],en:[[[7,1],[7,2],[7,3]]]},
+{n:"Kaante aur Pahredar",nw:["spike","sentinel"],limit:1,hint:"Plate A tak kaante biche hain aur darwaze ke baad Sentinel ghoom raha hai. Sahi kadam gino!",
+ map:["###########","#S.v.a#####","#....A...E#","#.........#","###########"],en:[[[7,2],[7,3]]]},
+{n:"Sahayogi Echo",nw:["two","crush"],limit:2,hint:"Plate B darwaze A ke andar hai! Pehla Echo plate A dabayega, tab doosra Echo andar jaakar plate B dabayega.",
+ map:["###########","#S.a#...###","#...A.b.BE#","#...#...###","###########"],en:[]},
+{n:"Double Suraksha",nw:["spike","two"],limit:2,hint:"Dono plates kaanto ke peeche hain. Timing mila kar do Echo banao, phir beech ke raste se nikal jao.",
+ map:["###########","#..v.a..###","#S....AB.E#","#..^.b..###","###########"],en:[]},
+{n:"Chakravyuh (Finale)",nw:["sentinel","spike","two","crush"],limit:2,hint:"Aakhiri pariksha! Do Sentinel, kaante aur do darwaze. Dhyan se har Echo ka rasta chuno.",
+ map:["#############","#S.v.a#...###","#.....A.v.BE#","#....b#...###","#############"],en:[[[3,2],[3,3]],[[8,1],[8,2],[8,3]]]}
+];
+
+let li=0,G,W,H,start,plates,ens,t,P,ghosts,rec,busy,CS=48,dpr=window.devicePixelRatio||1;
+const cv=document.getElementById("cv"),ctx=cv.getContext("2d"),$=id=>document.getElementById(id);
+const COL={A:"#ffb703",B:"#c77dff",a:"#ffb703",b:"#c77dff"};
+
+try{if(localStorage.getItem("te_mute")==="1"){muted=true;$("snd").textContent="🔇"}}catch(e){}
+$("snd").onclick=()=>{muted=!muted;$("snd").textContent=muted?"🔇":"🔊";try{localStorage.setItem("te_mute",muted?"1":"0")}catch(e){}};
+
+function load(i,noIntro){
+ li=i;if(started)try{localStorage.setItem("te_lv",i)}catch(e){}
+ const d=LV[i];G=d.map.map(r=>r.split(""));H=G.length;W=G[0].length;plates=[];
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=G[y][x];if(c=="S"){start={x,y};G[y][x]="."}if(c=="a"||c=="b")plates.push({x,y,l:c.toUpperCase()})}
+ ens=d.en.map(p=>p.map(q=>({x:q[0],y:q[1]})));ghosts=[];size();resetRound();msg(d.hint);if(!noIntro)intro();
+}
+
+function resetRound(){
+ clearTimeout(dieTimer);$("wrap").classList.remove("shake");
+ t=0;P={x:start.x,y:start.y};rec=[];ghosts.forEach(g=>{g.x=start.x;g.y=start.y;g.alive=true});busy=false;$("ov").style.display="none";hud();
+}
+
+function size(){
+ dpr=window.devicePixelRatio||1;
+ const w=Math.min(window.innerWidth-20,640),h=window.innerHeight*.45;CS=Math.max(24,Math.floor(Math.min(w/W,h/H)));
+ cv.width=W*CS*dpr;cv.height=H*CS*dpr;cv.style.width=W*CS+"px";cv.style.height=H*CS+"px";
+}
+
+function hud(){$("hl").textContent="Level "+(li+1)+"/"+LV.length+": "+LV[li].n;$("ht").textContent="Step "+t+"/"+MAXT;$("he").textContent="Echo "+ghosts.length+"/"+LV[li].limit}
+function msg(s){$("msg").textContent=s}
+function enemyPos(k){return ens.map(p=>{const n=p.length,per=2*(n-1),m=k%per;return p[m<n?m:per-m]})}
+function openSet(){const o={};plates.forEach(p=>{if((P.x==p.x&&P.y==p.y)||ghosts.some(g=>g.alive&&g.x==p.x&&g.y==p.y))o[p.l]=true});return o}
+function mv(e,d,o){const v=DIRS[d],nx=e.x+v[0],ny=e.y+v[1],c=G[ny][nx];if(c=="#")return;if((c=="A"||c=="B")&&!o[c])return;e.x=nx;e.y=ny}
+
+function step(d){
+ if(busy)return;
+ const o=openSet(),oe=enemyPos(t),op={x:P.x,y:P.y},og=ghosts.map(g=>({x:g.x,y:g.y}));
+ mv(P,d,o);rec.push(d);
+ ghosts.forEach(g=>{if(g.alive){const gd=g.path[t];if(gd)mv(g,gd,o)}});
+ t++;
+ const ne=enemyPos(t);
+ const lethal=(e,ox,oy,o2)=>{const c=G[e.y][e.x];
+  if((c=="A"||c=="B")&&!o2[c])return "crush";
+  if((c=="v"&&t%2==0)||(c=="^"&&t%2==1))return "spike";
+  if(ne.some((q,i)=>(q.x==e.x&&q.y==e.y)||(q.x==ox&&q.y==oy&&oe[i].x==e.x&&oe[i].y==e.y)))return "sentinel";
+  return null};
+ let why=null,lost=0,ch=true;
+ while(ch&&!why){ch=false;const o2=openSet();
+  why=lethal(P,op.x,op.y,o2);if(why)break;
+  ghosts.forEach((g,i)=>{if(g.alive&&lethal(g,og[i].x,og[i].y,o2)){g.alive=false;ch=true;lost++}})}
+ hud();
+ if(why){return die(why=="crush"?"Darwaza band hote hi kuchal gaye! Plate dabane wala hat gaya tha.":why=="spike"?"Kaante lag gaye! Timing dekho, orange matlab agla step danger.":"Sentinel ne pakad liya!")}
+ if(G[P.y][P.x]=="E"){busy=true;sfx("win");win();return}
+ if(t>=MAXT)return die("Time khatam! Round chhota rakho, jaldi echo banao.");
+ sfx("step");
+ if(lost)msg("Ek echo destroy ho gaya! Uska raasta galat tha, retry ya reset karo.");
+}
+
+function die(m){
+ busy=true;sfx("die");msg(m);$("wrap").classList.add("shake");
+ clearTimeout(dieTimer);
+ dieTimer=setTimeout(()=>{$("wrap").classList.remove("shake");resetRound()},900);
+}
+
+function win(){
+ const last=li==LV.length-1;
+ $("ot").innerHTML=last?"🎉 Sabhi 7 Levels Clear!<br><small>Tum sachche Time Echo Master ho!</small>":"✅ Level "+(li+1)+" Paar!";
+ $("ob").textContent=last?"Shuru se khelo":"Agla Level →";
+ $("ob").onclick=()=>load(last?0:li+1);
+ $("ov").style.display="flex";
+}
+
+function echo(){
+ if(busy)return;
+ if(!rec.length){msg("Pehle kuch move karo, phir echo banao.");return}
+ if(ghosts.length>=LV[li].limit){msg("Echo limit khatam! Level reset karo (X) aur nayi planning karo.");return}
+ sfx("echo");
+ ghosts.push({path:rec.slice(),x:start.x,y:start.y,alive:true});resetRound();msg("Echo ban gaya! Ab wo tumhare pichhle moves dohrayega.");
+}
+
+function draw(now){
+ const c=ctx,cs=CS;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W*cs,H*cs);
+ const pulse=.5+.5*Math.sin(now/300),o=openSet();
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const ch=G[y][x],X=x*cs,Y=y*cs;
+  c.fillStyle=ch=="#"?"#2a3360":"#121830";c.fillRect(X,Y,cs,cs);
+  if(ch!="#"){c.strokeStyle="#1d2548";c.strokeRect(X+.5,Y+.5,cs-1,cs-1)}
+  if(ch=="E"){c.fillStyle="rgba(60,220,120,"+(.35+.3*pulse)+")";c.fillRect(X+4,Y+4,cs-8,cs-8);c.fillStyle="#3cdc78";c.font=(cs*.5)+"px sans-serif";c.textAlign="center";c.textBaseline="middle";c.fillText("⚑",X+cs/2,Y+cs/2)}
+  if(ch=="v"||ch=="^"){const par=ch=="v"?0:1,on=t%2==par,nx=(t+1)%
